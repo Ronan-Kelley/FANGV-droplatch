@@ -1,5 +1,4 @@
 #include "server.h"
-#include "server_config.h"
 
 #include <arpa/inet.h>      // inet_addr()
 #include <errno.h>          // errno
@@ -30,7 +29,7 @@ int init_server(server_config* config, server_values* values)
     values->addr.sin_port = htons(config->port);
 
 
-    // set up the socket
+    // set up the socket as an internet stream
     values->sockfd = socket(AF_INET, SOCK_STREAM, 0);
     // check for errors in setting up the socket
     if (values->sockfd == -1)
@@ -44,30 +43,24 @@ int init_server(server_config* config, server_values* values)
         return 1;
     }
 
-    // bind to the socket
+    // bind to the socket - this basically just asks the kernel to associate the socket
+    // we opened earlier with a name, which for AF_INET sockets is an IP and port that
+    // get pulled from the sockaddr_in struct.
     if (bind(values->sockfd, (struct sockaddr*)&values->addr, sizeof(values->addr)) != 0)
     {
-        
         char errName[256];
         strerror_r(errno, errName, sizeof(errName) / sizeof(char));
         fprintf(stderr, "socket binding failed: %d (%s)\n", errno, errName);
         return 2;
     }
 
-    // TODO remove this, it's just for debugging :^)
-    printf(
-        "sockfd: %d\nport: %d\nip: %s\nsizeof(values->addr): %lu\n"
-        ,values->sockfd
-        ,config->port
-        ,config->ip
-        ,sizeof(values->addr)
-    );
-
+    // finally, we connect to the socket - from our point of view, this basically just
+    // starts the connection.
     if (connect(values->sockfd, (struct sockaddr*)&values->addr, sizeof(values->addr)) != 0)
     {
         char errName[256];
         strerror_r(errno, errName, sizeof(errName) / sizeof(char));
-        fprintf(stderr, "could not connect to socket: %d (%s)\n", errno, errName);
+        fprintf(stderr, "socket connection failed: %d (%s)\n", errno, errName);
         return 3;
     }
 

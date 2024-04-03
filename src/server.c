@@ -3,11 +3,17 @@
 #include <arpa/inet.h>      // inet_addr()
 #include <errno.h>          // errno
 #include <netinet/in.h>     // sockaddr_in
+#include <poll.h>           // poll(), pollfd
 #include <stdio.h>          // fprintf()
-#include <stdlib.h>         // exit()
+#include <stdlib.h>         // exit(), strtol()
 #include <string.h>         // memset()
 #include <sys/socket.h>     // socket()
-#include <unistd.h>         // close(), open(), read(), write()
+#include <unistd.h>         // close(), open(), read(), write(), getopt()
+
+#define DEFAULT_PORT    3000            // this port was not chosen for any particular reason
+                                        // aside from its not being a system port [0,1024).
+#define DEFAULT_IP      "127.0.0.1"
+#define MAX_CONN        8
 
 /**
  * initialize the server based on the config, setting up values
@@ -69,14 +75,68 @@ int init_server(server_config* config, server_values* values)
 
 int main(int argc, char** argv)
 {
-    // TODO optionally read port and IP from args
-    (void) argc; // both of these casts are compiled out but prevent
-    (void) argv; // the compiler from complaining about unused variables
-
     server_config config;
     server_values values;
-    config.port = 8080;
-    config.ip = "127.0.0.1";
+    config.port = DEFAULT_PORT;
+    config.ip = DEFAULT_IP;
+
+    int opt;
+    while ((opt = getopt(argc, argv, "a:p:")) != -1)
+    {
+        switch (opt)
+        {
+            case 'a':
+                // clangd, my language server, freaks out without a semicolon right after a break statement.
+                // I have no idea why this is.
+                ;
+                    
+                // attempt to parse the option's argument into an IP
+                struct sockaddr_in tmpAddr;
+                int result = inet_pton(AF_INET, optarg, &(tmpAddr.sin_addr));
+
+                // if an invalid IP is passed, we should tell the user and exit with an error code
+                if (result != 1)
+                {
+                    fprintf(stderr, "ip \"%s\" is not valid - aborting.\n", optarg);
+                    exit(1);
+                }
+                // if a valid IP is passed, assign the text to config.ip
+                config.ip = optarg; // this is a safe assignment because optarg is just a pointer to the part of argv
+                                    // the string came from - the pointer will change, but the address moved to
+                                    // config.ip will remain valid and pointed at the contents we want.
+                break;
+            case 'p':
+                // see previous statement about clangd
+                ;
+
+                // set errno to 0 so we know if an error actually happened
+                errno = 0;
+
+                // attempt to parse the given port arg
+                long tmpHolder = strtol(optarg, NULL, 10);
+
+                // make sure the parsed value is a valid port number
+                if (tmpHolder >= 0 && tmpHolder <= 65535)
+                {
+                    // this is a safe cast because we know that tmpHolder is within [0,65535], which
+                    // all fall easily within the range of a signed 32-bit integer as that is the range
+                    // of an unsigned 16-bit integer.
+                    config.port = (int) tmpHolder;
+                    printf("got here!\n");
+                }
+                // if the given port cannot be parsed, we should tell the user and exit with an error code
+                else if (errno != 0)
+                {
+                    fprintf(stderr, "could not parse given port \"%s\" - aborting.\n", optarg);
+                    exit(1);
+                }
+
+                // if parse has no errors
+                break;
+        }
+    }
+
+    printf("initializing server on %s:%d\n", config.ip, config.port);
 
     // attempt to initialize the server, quit on failure
     if (init_server(&config, &values) != 0)

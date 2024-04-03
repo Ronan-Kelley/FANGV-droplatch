@@ -80,6 +80,7 @@ int main(int argc, char** argv)
     config.port = DEFAULT_PORT;
     config.ip = DEFAULT_IP;
 
+    // parse launch args
     int opt;
     while ((opt = getopt(argc, argv, "a:p:")) != -1)
     {
@@ -115,6 +116,13 @@ int main(int argc, char** argv)
                 // attempt to parse the given port arg
                 long tmpHolder = strtol(optarg, NULL, 10);
 
+                // if the given port cannot be parsed, we should tell the user and exit with an error code
+                if (errno != 0)
+                {
+                    fprintf(stderr, "could not parse given port \"%s\" - aborting.\n", optarg);
+                    exit(1);
+                }
+
                 // make sure the parsed value is a valid port number
                 if (tmpHolder >= 0 && tmpHolder <= 65535)
                 {
@@ -122,17 +130,20 @@ int main(int argc, char** argv)
                     // all fall easily within the range of a signed 32-bit integer as that is the range
                     // of an unsigned 16-bit integer.
                     config.port = (int) tmpHolder;
-                    printf("got here!\n");
                 }
-                // if the given port cannot be parsed, we should tell the user and exit with an error code
-                else if (errno != 0)
+                // if the parsed value is not a valid port number, we should tell the user and exit with an error code.
+                else
                 {
-                    fprintf(stderr, "could not parse given port \"%s\" - aborting.\n", optarg);
+                    fprintf(stderr, "invalid port - ports must fall within the range [0,65535]. Aborting.\n");
                     exit(1);
                 }
 
                 // if parse has no errors
                 break;
+            default:
+                // if we get here, the user is passing in something weird.
+                fprintf(stderr, "usage: program [-p <port>] [-a <ip address>]\n");
+                exit(1);
         }
     }
 

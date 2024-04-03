@@ -24,7 +24,12 @@ int init_server(server_config* config, server_values* values)
     // check for errors in setting up the socket
     if (values->sockfd == -1)
     {
-        fprintf(stderr, "socket creation failed!\n");
+        // this software isn't multithreaded as of my writing this, but it ideally will be
+        // eventually, so we have to allocate a buffer and use strerror_r() instead of just
+        // using str_error() in place.
+        char errName[256];
+        strerror_r(errno, errName, sizeof(errName) / sizeof(char));
+        fprintf(stderr, "socket creation failed: %d (%s)\n", errno, errName);
         return 1;
     }
 
@@ -49,6 +54,9 @@ int init_server(server_config* config, server_values* values)
 
     if (connect(values->sockfd, (struct sockaddr*) &values->addr, sizeof(values->addr)) != 0)
     {
+        // this software isn't multithreaded as of my writing this, but it ideally will be
+        // eventually, so we have to allocate a buffer and use strerror_r() instead of just
+        // using str_error() in place.
         char errName[256];
         strerror_r(errno, errName, sizeof(errName) / sizeof(char));
         fprintf(stderr, "could not connect to socket: %d (%s)\n", errno, errName);
@@ -69,6 +77,7 @@ int main(int argc, char** argv)
     config.port = 8080;
     config.ip = "127.0.0.1";
 
+    // attempt to initialize the server, quit on failure
     if (init_server(&config, &values) != 0)
     {
         exit(1);

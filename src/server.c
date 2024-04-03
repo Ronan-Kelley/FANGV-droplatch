@@ -19,6 +19,17 @@
  */
 int init_server(server_config* config, server_values* values)
 {
+    // zero the addr struct
+    memset(&values->addr, 0, sizeof(values->addr));
+
+    // TCP/UDP sockets always have AF_INET for their sin_family value
+    values->addr.sin_family = AF_INET;
+    // set ip
+    values->addr.sin_addr.s_addr = inet_addr(config->ip);
+    // set port
+    values->addr.sin_port = htons(config->port);
+
+
     // set up the socket
     values->sockfd = socket(AF_INET, SOCK_STREAM, 0);
     // check for errors in setting up the socket
@@ -33,15 +44,15 @@ int init_server(server_config* config, server_values* values)
         return 1;
     }
 
-    // zero the addr struct
-    memset(&values->addr, 0, sizeof(values->addr));
-
-    // TCP/UDP sockets always have AF_INET for their sin_family value
-    values->addr.sin_family = AF_INET;
-    // set ip
-    values->addr.sin_addr.s_addr = inet_addr(config->ip);
-    // set port
-    values->addr.sin_port = htons(config->port);
+    // bind to the socket
+    if (bind(values->sockfd, (struct sockaddr*)&values->addr, sizeof(values->addr)) != 0)
+    {
+        
+        char errName[256];
+        strerror_r(errno, errName, sizeof(errName) / sizeof(char));
+        fprintf(stderr, "socket binding failed: %d (%s)\n", errno, errName);
+        return 2;
+    }
 
     // TODO remove this, it's just for debugging :^)
     printf(
@@ -52,15 +63,12 @@ int init_server(server_config* config, server_values* values)
         ,sizeof(values->addr)
     );
 
-    if (connect(values->sockfd, (struct sockaddr*) &values->addr, sizeof(values->addr)) != 0)
+    if (connect(values->sockfd, (struct sockaddr*)&values->addr, sizeof(values->addr)) != 0)
     {
-        // this software isn't multithreaded as of my writing this, but it ideally will be
-        // eventually, so we have to allocate a buffer and use strerror_r() instead of just
-        // using str_error() in place.
         char errName[256];
         strerror_r(errno, errName, sizeof(errName) / sizeof(char));
         fprintf(stderr, "could not connect to socket: %d (%s)\n", errno, errName);
-        return 2;
+        return 3;
     }
 
     return 0;

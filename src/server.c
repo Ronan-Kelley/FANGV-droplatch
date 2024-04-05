@@ -11,11 +11,13 @@
 #include <sys/socket.h>     // socket()
 #include <unistd.h>         // close(), open(), read(), write(), getopt()
 
-#define MAX_CONN        8
+#define MAX_CONN ((int) 8)
 
 /**
  * initialize the server based on the config, setting up values
  * to be a server_values struct with a valid state
+ *
+ * returns 0 on success, and a non-zero integer on failure.
  *
  * TODO return a more accessible constant on failure instead of
  *      returning incrementing numbers
@@ -58,13 +60,13 @@ int init_server(server_config* config, server_values* values)
         return 2;
     }
 
-    // finally, we connect to the socket - from our point of view, this basically just
-    // starts the connection.
-    if (connect(values->sockfd, (struct sockaddr*)&values->addr, sizeof(values->addr)) != 0)
+    // finally, start listening for connections - this doesn't do much on its own,
+    // but it does allow us to start accept()ing new connections.
+    if (listen(values->sockfd, MAX_CONN) != 0)
     {
         char errName[256];
         strerror_r(errno, errName, sizeof(errName) / sizeof(char));
-        fprintf(stderr, "socket connection failed: %d (%s)\n", errno, errName);
+        fprintf(stderr, "socket listen failed: %d (%s)\n", errno, errName);
         return 3;
     }
 
@@ -124,5 +126,5 @@ int main(int argc, char** argv)
 
     close(values.sockfd);
     
-    return 0;
+    exit(0);
 }

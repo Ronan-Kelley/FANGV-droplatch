@@ -1,15 +1,27 @@
 CC=gcc
 CFLAGS=-Werror -Wall -Wextra -Isrc
-BINNAME=droplatch
+SERVERNAME=droplatch
+CLIENTNAME=droplatch-client
 
-build: bin/server.o
-	$(CC) $(CFLAGS) $^ -o bin/$(BINNAME)
+build: server client
+
+server: bin/server.o bin/client_server_shared.o
+	$(CC) $(CFLAGS) $^ -o bin/$(SERVERNAME)
 	
+client: bin/client.o bin/client_server_shared.o
+	$(CC) $(CFLAGS) $^ -o bin/$(CLIENTNAME)
+
 bin/server.o: src/server.c
 	$(CC) $(CFLAGS) -c $^ -o bin/$(basename $(@F)).o
 
-run: build
-	./bin/droplatch
+bin/client.o: src/client.c
+	$(CC) $(CFLAGS) -c $^ -o bin/$(basename $(@F)).o
 
+bin/client_server_shared.o: src/client_server_shared.c
+	$(CC) $(CFLAGS) -c $^ -o bin/$(basename $(@F)).o
+
+#########
+# clean #
+#########
 clean:
 	rm -rf bin/*

@@ -7,7 +7,7 @@
 #include <poll.h>           // poll(), pollfd
 #include <stdio.h>          // fprintf()
 #include <stdlib.h>         // exit(), strtol()
-#include <string.h>         // memset()
+#include <string.h>         // memset(), strtoerr_r()
 #include <sys/socket.h>     // socket()
 #include <unistd.h>         // close(), open(), read(), write(), getopt()
 
@@ -17,7 +17,7 @@
  * initialize the server based on the config, setting up values
  * to be a server_values struct with a valid state
  *
- * returns 0 on success, and a non-zero integer on failure.
+ * returns 0 on success, calls exit() on failure
  *
  * TODO return a more accessible constant on failure instead of
  *      returning incrementing numbers
@@ -44,7 +44,7 @@ int init_server(server_config* config, server_values* values)
         // eventually, so we have to allocate a buffer and use strerror_r() instead of just
         // using str_error() in place.
         char errName[256];
-        strerror_r(errno, errName, sizeof(errName) / sizeof(char));
+        strerror_r(errno, errName, sizeof(errName));
         fprintf(stderr, "socket creation failed: %d (%s)\n", errno, errName);
         return 1;
     }
@@ -55,7 +55,7 @@ int init_server(server_config* config, server_values* values)
     if (bind(values->sockfd, (struct sockaddr*)&values->addr, sizeof(values->addr)) != 0)
     {
         char errName[256];
-        strerror_r(errno, errName, sizeof(errName) / sizeof(char));
+        strerror_r(errno, errName, sizeof(errName));
         fprintf(stderr, "socket binding failed: %d (%s)\n", errno, errName);
         return 2;
     }
@@ -65,12 +65,45 @@ int init_server(server_config* config, server_values* values)
     if (listen(values->sockfd, MAX_CONN) != 0)
     {
         char errName[256];
-        strerror_r(errno, errName, sizeof(errName) / sizeof(char));
+        strerror_r(errno, errName, sizeof(errName));
         fprintf(stderr, "socket listen failed: %d (%s)\n", errno, errName);
         return 3;
     }
 
     return 0;
+}
+
+void echoChat(server_values* values)
+{
+    struct sockaddr_in client;
+    socklen_t len = sizeof(client);
+    int connfd = accept(values->sockfd, (struct sockaddr*)&client, &len);
+    if (connfd < 0)
+    {
+        fprintf(stderr, "could not accept connection, exiting\n");
+        close(values->sockfd);
+        exit(1);
+    }
+
+    char buf[256];
+    for (;;)
+    {
+        // reset the buffer
+        memset(buf, 0, sizeof(buf));
+
+        // read client message to buffer
+        read(connfd, buf, sizeof(buf));
+        printf("received message \"%s\"\n", buf);
+
+        // send message back to client
+        write(connfd, buf, strlen(buf) + 1);
+
+        // exit condition
+        if (!strncmp("exit", buf, 4))
+        {
+            break;
+        }
+    }
 }
 
 int main(int argc, char** argv)
@@ -123,6 +156,8 @@ int main(int argc, char** argv)
     {
         exit(1);
     }
+
+    echoChat(&values);
 
     close(values.sockfd);
     

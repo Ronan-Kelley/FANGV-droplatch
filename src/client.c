@@ -2,16 +2,90 @@
 #include "client_server_shared.h"
 
 #include <arpa/inet.h>      // inet_addr(), inet_pton()
+#include <errno.h>          // errno
 #include <netinet/in.h>     // sockaddr_in
 #include <stdio.h>          // printf()
 #include <stdlib.h>         // exit()
+#include <string.h>         // memset(), strtoerr_r()
 #include <unistd.h>         // open(), close(), write(), read(), getopt()
+
+/**
+ * attempt to initialize a connection to the droplatch server.
+ *
+ * return 0 on success, calls exit() on failure
+ */
+int init_connection(client_config* config, client_values* values)
+{
+    // set up server address struct
+    memset(&values->serveraddr, 0, sizeof(values->serveraddr));
+    values->serveraddr.sin_family = AF_INET;
+    values->serveraddr.sin_addr.s_addr = inet_addr(config->ip);
+    values->serveraddr.sin_port = htons(config->port);
+
+    // create socket
+    values->sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (values->sockfd == -1)
+    {
+        char errName[256];
+        strerror_r(errno, errName, sizeof(errName));
+        fprintf(stderr, "socket creation failed: %d (%s)\n", errno, errName); 
+        exit(1);
+    }
+
+    // connect socket to server
+    if (connect(values->sockfd, (struct sockaddr*)&values->serveraddr, sizeof(values->serveraddr)) != 0)
+    {
+        char errName[256];
+        strerror_r(errno, errName, sizeof(errName));
+        fprintf(stderr, "connection failed: %d (%s)\n", errno, errName);
+        exit(2);
+    }
+    
+    return 0;
+}
+
+/// temporary test loop for client
+void echoChat(client_values* values)
+{
+    char buf[256];
+    int n;
+    for (;;)
+    {
+        // reset values
+        memset(buf, 0, sizeof(buf));
+        n = 0;
+
+        // get user input
+        printf("> ");
+        while ((buf[n++] = getchar()) != '\n');
+        // remove endline
+        buf[n - 1] = '\0';
+        // write user input to server
+        write(values->sockfd, buf, sizeof(buf));
+
+        // reset buffer
+        memset(buf, 0, sizeof(buf));
+
+        // read server response
+        read(values->sockfd, buf, sizeof(buf));
+        // print server response
+        printf("\"%s\"\n", buf);
+
+        // exit condition
+        if (!strncmp(buf, "exit", 4))
+        {
+            break;
+        }
+    }
+}
 
 int main(int argc, char** argv)
 {
     client_config config;
     config.ip = DEFAULT_IP;
     config.port = DEFAULT_PORT;
+
+    client_values values;
 
     // parse launch args
     int opt;
@@ -50,6 +124,11 @@ int main(int argc, char** argv)
     }
 
     printf("attempting to connect to %s:%d\n", config.ip, config.port);
+    init_connection(&config, &values);
+
+    echoChat(&values);
+
+    close(values.sockfd);
 
     return 0;
 }

@@ -3,7 +3,6 @@
 
 #include <netinet/in.h> // sockaddr_in, sockaddr_storage, socklen_t
 #include <poll.h>       // poll(), pollfds
-#include <stdbool.h>    // bool
 
 #define BASE_POLL_TIMEOUT   ((int) 100)
 #define BUF_SIZE            ((int) 256)
@@ -21,7 +20,7 @@ typedef struct server_config_t
 typedef struct client_connection_t
 {
     /// is the socket open?
-    bool open;
+    int open;
     /// connection socket file descriptor
     int client_fd;
     /// connection socket information

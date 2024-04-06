@@ -115,7 +115,7 @@ int accept_connections(server_values* values)
             // once an empty client struct is found, use it
             if (!values->clients[i].open)
             {
-                values->clients[i].open = true;
+                values->clients[i].open = 1;
                 values->clients[i].len = sizeof(values->clients[i]);
                 values->clients[i].client_fd = accept(
                     values->server_fd,
@@ -127,11 +127,11 @@ int accept_connections(server_values* values)
                 if (values->clients[i].client_fd == -1)
                 {
                     printf("accept encountered an error!\n");
-                    values->clients[i].open = false;
+                    values->clients[i].open = 0;
                     return -1;
                 }
 
-                printf("accepted a connection\n");
+                printf("accepted a connection to index %d\n", i);
 
                 return 1;
             }
@@ -204,13 +204,14 @@ void read_connections(server_values* values)
                 // exit condition
                 if (!strncmp("exit", buf, 4))
                 {
-                    values->clients[i].open = false;
+                    values->clients[i].open = 0;
                     close(values->clients[i].client_fd);
                 }
             }
             else if (values->client_pfds[i].revents & POLLHUP)
             {
-                values->clients[i].open = false;
+                printf("closing connection on index %d\n", i);
+                values->clients[i].open = 0;
                 close(values->clients[i].client_fd);
             }
         }

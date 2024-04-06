@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Werror -Wall -Wextra -Isrc
+CFLAGS=-Werror -Wall -Wextra -Isrc -pthread
 SERVERNAME=droplatch
 CLIENTNAME=droplatch-client
 

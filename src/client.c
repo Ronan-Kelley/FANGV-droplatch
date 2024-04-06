@@ -6,7 +6,7 @@
 #include <netinet/in.h>     // sockaddr_in
 #include <stdio.h>          // printf()
 #include <stdlib.h>         // exit()
-#include <string.h>         // memset(), strtoerr_r()
+#include <string.h>         // memset(), strerror()
 #include <unistd.h>         // open(), close(), write(), read(), getopt()
 
 /**
@@ -26,18 +26,16 @@ int init_connection(client_config* config, client_values* values)
     values->sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (values->sockfd == -1)
     {
-        char errName[256];
-        strerror_r(errno, errName, sizeof(errName));
-        fprintf(stderr, "socket creation failed: %d (%s)\n", errno, errName); 
+        // no need to use strerror_r in client, as it doesn't have any
+        // reason to be multithreaded
+        fprintf(stderr, "socket creation failed: %d (%s)\n", errno, strerror(errno)); 
         exit(1);
     }
 
     // connect socket to server
     if (connect(values->sockfd, (struct sockaddr*)&values->serveraddr, sizeof(values->serveraddr)) != 0)
     {
-        char errName[256];
-        strerror_r(errno, errName, sizeof(errName));
-        fprintf(stderr, "connection failed: %d (%s)\n", errno, errName);
+        fprintf(stderr, "connection failed: %d (%s)\n", errno, strerror(errno));
         exit(2);
     }
     
@@ -125,6 +123,7 @@ int main(int argc, char** argv)
 
     printf("attempting to connect to %s:%d\n", config.ip, config.port);
     init_connection(&config, &values);
+    printf("connection successfull.\n");
 
     echoChat(&values);
 
